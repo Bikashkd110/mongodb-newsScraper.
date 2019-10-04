@@ -1,16 +1,17 @@
-// Dependencies
+//Dependencies
 const express    = require("express");
 const bodyParser = require("body-parser");
 const logger     = require("morgan");
 const mongoose   = require("mongoose");
+const request = require("request");//Our scraping tools
+const cheerio = require("cheerio");//Our scraping tools
 
 // Requiring our Note and Article models
 const Note    = require("./models/Comment");
 const Article = require("./models/Article");
 
-// Our scraping tools
-const request = require("request");
-const cheerio = require("cheerio");
+
+
 
 // Set mongoose to leverage built in JavaScript ES6 Promises
 mongoose.Promise = Promise;
@@ -27,7 +28,9 @@ app.use(bodyParser.urlencoded({"extended": false}));
 app.use(express.static("public"));
 
 // Database configuration with mongoose
-mongoose.connect("mongodb://localhost/web-scraper");
+var MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost/web-scraper";
+mongoose.connect(MONGODB_URI);
+
 const db = mongoose.connection;
 
 // Show any mongoose errors
@@ -41,22 +44,23 @@ db.once("open", function() {
 });
 
 
+
 // Routes
 // ======
 // A GET request to scrape the echojs website
 app.get("/scrape", function(req, res) {
     // First, we grab the body of the html with request
-    request("https://www.nytimes.com", function(error, response, html) {
+    request("https://old.reddit.com/r/webdev/", function(error, response, html) {
         // Then, we load that into cheerio and save it to $ for a shorthand selector
         const $ = cheerio.load(html);
         // Now, we grab every h2 within an article tag, and do the following:
-        $(".css-16f7co2").each(function(i, element) {
+        $("p.title").each(function(i, element) {
             // Add the text and href of a link
             const result = {
                 "title": $(this).children("a").text(),
                 "link" : $(this).children("a").attr("href")
             };
-
+            console.log (result);
             // Using our Article model, create a new entry
             // This effectively passes the result object to the entry (and the title and link)
             const entry = new Article(result);
@@ -82,6 +86,8 @@ app.get("/articles", function(req, res) {
         res.json(doc);
     });
 });
+
+
 
 // This will grab an article by it's ObjectId
 app.get("/articles/:id", function(req, res) {
@@ -111,7 +117,7 @@ app.post("/articles/:id", function(req, res) {
     newNote.save(function(err, doc) {
         if (err) throw err;
 
-        /*
+        
         Article.findOneAndUpdate({"_id": req.params.id}, {
             "note": doc._id
 
@@ -120,7 +126,7 @@ app.post("/articles/:id", function(req, res) {
 
             res.json(doc1);
         });
-        */
+        
 
         Article.findOneAndUpdate({
             "_id": req.params.id
@@ -140,6 +146,7 @@ app.post("/articles/:id", function(req, res) {
 
     });
 });
+
 
 
 // Listen on port 3000
